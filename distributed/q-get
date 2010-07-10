@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+import sys
+import os
+import beanstalkc
+
+q_host = '127.0.0.1'
+q_port = 11300
+q_name = sys.argv[1]
+
+try:
+    q_host = os.environ.get('QUEUEIT_HOST', '127.0.0.1')
+    q_port = int(os.environ.get('QUEUEIT_PORT', 11300))
+except:
+    print "Wrong QUEUEIT_HOST or QUEUEIT_PORT parameter. Using defaults: %s, %s" % (q_host, q_port)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print "Usage %s <queue>" % (sys.argv[0] )
+        sys.exit(1)
+
+    q_name = sys.argv[1]
+    try:
+        q_conn = beanstalkc.Connection(host=q_host, port=q_port)
+    except beanstalkc.SocketError:
+        print "Can't connect to %s:%s" % (q_host, q_port)
+        sys.exit(1)
+
+
+    q_conn.watch(q_name)
+    job = q_conn.reserve()
+    print job.body
+    job.delete()
+    q_conn.close()
+

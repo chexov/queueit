@@ -1,9 +1,0 @@
-1. Run the beanstalkd server
-   beanstalkd
-
-2. Push new tasks to process
-   ./queueit.py bt://host:port todownload "http://site.com/video1.avi" "http://video2.avi"
-
-3. Run workers in the cloud
-   ./wrapper.py bt://host:port file:///mylocalstoragedir/ todownload toencode worker_example.py
-

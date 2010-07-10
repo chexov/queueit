@@ -1,0 +1,37 @@
+Using q-put and q-get
+=====================
+1. Run the beanstalkd server
+beanstalkd -d
+
+2. Push new tasks to process
+q-put todownload "http://site.com/video1.avi" "http://video2.avi"
+
+3. Run workers in the cloud
+while true; do
+   url=$(q-get todownload);
+   wget -c $url -O $$.out
+   q-put toencode $$.out
+done
+
+while true; do
+   in_file=$(q-get toencode)
+   HandbrakeCLI -i $in_file -o ${in_file%.avi}.mp4
+one
+
+
+Using q-wrapper
+===============
+1. Run beanstalkd queue server:
+beanstalkd -d
+
+2. Push new task
+q-put download "URL='http://site.com/video1.avi';AVI='video1.avi';MP4='video1.mp4'"
+
+3. Run q-wrapper to process the tasks
+cat > download.sh
+#!/bin/sh
+eval $1
+wget -c $URL -O $AVI
+
+q-wrapper download encode ./download.sh
+
