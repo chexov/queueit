@@ -51,8 +51,8 @@ if __name__ == "__main__":
         retcode = subprocess.call(cmd, shell=True)
         if not retcode == 0:
             LOG.error(u"Worker command was exited with retcode %s" % retcode)
-            job.release(delay=1)
-            LOG.info(u"Job %s released" % job.jid)
+            job.bury()
+            LOG.info(u"Job %s buried" % job.jid)
         else:
             QOUT.use(QOUT_NAME)
             jid = QOUT.put(str(params))
