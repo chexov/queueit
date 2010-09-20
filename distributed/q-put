@@ -1,34 +1,141 @@
 #!/usr/bin/env python
+# encoding: utf-8
 import sys
 import os
-import beanstalkc
+from beanstalkc import *
 
-q_host = '127.0.0.1'
-q_port = 11300
-q_name = 'default'
+
+# Loading values from the shell ENV
+QHOST = os.environ.get('QUEUEIT_HOST', DEFAULT_HOST)
+QPORT = 11300
 
 try:
-    q_host = os.environ.get('QUEUEIT_HOST', '127.0.0.1')
-    q_port = int(os.environ.get('QUEUEIT_PORT', 11300))
-except:
-    print "Wrong QUEUEIT_HOST or QUEUEIT_PORT parameter. Using defaults: %s, %s" % (q_host, q_port)
+    QTTR = int(os.environ.get('QUEUEIT_TTR', DEFAULT_TTR))
+except ValueError:
+    print "Incorect value for QUEUEIT_TTR. Using '%s' instead" % QTTR
+
+try:
+    QPORT = int(os.environ.get('QUEUEIT_PORT', DEFAULT_PORT))
+except ValueError:
+    print "Incorect value for QUEUEIT_PORT. Using '%s' instead" % QPORT
+
+
+
+def _get_qconnection(host, port):
+    try:
+        return Connection(host=host, port=port)
+    except SocketError:
+        print "Can't connect to %s:%s" % (host, port)
+        sys.exit(1)
+
+
+def qget(tube_name, qconn=None):
+    """
+    Reserving job from the tube, printing the job.body and deleting that job.
+    Be aware that job is already gone from the beanstalkd standpoint
+    and operator have to deal with it.
+    """
+    if not qconn:
+        qconn = _get_qconnection(QHOST, QPORT)
+
+    qconn.watch(tube_name)
+    job = qconn.reserve()
+    print job.body
+    job.delete()
+    qconn.close()
+
+
+def qput(tube_name, messages, qconn=None):
+    if not qconn:
+        qconn = _get_qconnection(QHOST, QPORT)
+
+    for message in messages:
+        qconn.use(tube_name)
+        jobid = qconn.put(str(message), ttr=QTTR)
+        print "OK: message=%s; tube=%s; job.id=%s; ttr=%s" % (message, tube_name, jobid, QTTR)
+    qconn.close()
+
+
+def qkick(tube_name, count=1, qconn=None):
+    if not qconn:
+        qconn = _get_qconnection(QHOST, QPORT)
+    qconn.use(tube_name)
+    print qconn.kick(count)
+
+
+def qstat(qconn=None):
+    if not qconn:
+        qconn = _get_qconnection(QHOST, QPORT)
+    import pprint
+    pprint.pprint(qconn.stats())
+    LINE="%-19s %-8s %-8s %-8s"
+    print LINE % ('tube', 'watching', 'buried', 'ready')
+    tubes = qconn.tubes()
+    for tube in qconn.tubes():
+        if tube:
+           tube_stats = qconn.stats_tube(tube)
+           #{'cmd-pause-tube': 0,
+           # 'current-jobs-buried': 0,
+           # 'current-jobs-delayed': 0,
+           # 'current-jobs-ready': 0,
+           # 'current-jobs-reserved': 0,
+           # 'current-jobs-urgent': 0,
+           # 'current-using': 0,
+           # 'current-waiting': 1,
+           # 'current-watching': 1,
+           # 'name': 'object-extractor',
+           # 'pause': 0,
+           # 'pause-time-left': 0,
+           # 'total-jobs': 0}
+           print LINE % (tube,
+                   tube_stats.get('current-watching'),
+                   tube_stats.get('current-jobs-buried'),
+                   tube_stats.get('current-jobs-ready'))
+
+
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print "Usage %s <queue> <message> [<message>, <message>]" % (sys.argv[0] )
-        sys.exit(1)
-    q_name = sys.argv[1]
-    try:
-        q_conn = beanstalkc.Connection(host=q_host, port=q_port)
-    except beanstalkc.SocketError:
-        print "Can't connect to %s:%s" % (q_host, q_port)
-        sys.exit(1)
+    COMMAND = os.path.basename(sys.argv[0])
+    args = sys.argv[1:]
+    if COMMAND == 'queueit':
+        if len(sys.argv) == 1:
+            print "Usage:"
+            print "%s q-get" % COMMAND
+            print "%s q-put" % COMMAND
+            print "%s q-kick" % COMMAND
+            print "%s q-stat" % COMMAND
+            print "%s q-wrapper" % COMMAND
+            sys.exit(1)
+        else:
+            COMMAND = os.path.basename(sys.argv[1])
+            args = sys.argv[2:]
 
 
-    for message in sys.argv[2:]:
-        q_conn.use(q_name)
-        jobid = q_conn.put(str(message) )
-        print "OK: %s; %s; %s" % (message, q_name, jobid)
-    q_conn.close()
+    if COMMAND == 'q-get':
+        if not len(args) == 1:
+            print "q-get usage: %s <queue>" % (COMMAND)
+            sys.exit(1)
+        qget(args[0])
+    elif COMMAND == 'q-put':
+        if len(args) < 2:
+            print "q-put usage: %s <queue> <message> [<message>, <message>]" % (sys.argv[0] )
+            sys.exit(1)
+        qput(args[0], args[1:])
+    elif COMMAND == 'q-kick':
+        if len(args) < 1 or len(args) > 2:
+            print "q-kick usage: %s <queue> [<count>]"
+            sys.exit(1)
+
+        count = 1
+        if len(args) == 2:
+            try:
+                count = int(args[1])
+            except ValueError:
+                print "Wrong count value '%s'. Using default %s" % (args[1], count)
+        qkick(args[0], count)
+    elif COMMAND == 'q-stat':
+        qstat()
+    else:
+        print "Unknown command '%s'" % COMMAND
 

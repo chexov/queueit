@@ -4,6 +4,7 @@ import sys
 import logging
 import subprocess
 import string
+from uuid import uuid4
 
 import beanstalkc
 
@@ -14,7 +15,7 @@ LOG.setLevel(logging.DEBUG)
 q_host = '127.0.0.1'
 q_port = 11300
 
-
+LOG_DIR="/home/giant/LabelsDB/updater/logs/"
 if __name__ == "__main__":
     if len(sys.argv) < 4:
         print "Usage %s <input queue> <output queue> <command>" % (sys.argv[0])
@@ -46,7 +47,11 @@ if __name__ == "__main__":
     while True:
         job = QIN.reserve()
         params = job.body
-        cmd = '%s "%s"' % (Q_CMD, params)
+        
+        log_id = uuid4().hex
+        log_redirect = "> %s/%s.log 2>&1" % (LOG_DIR, log_id)
+
+        cmd = '%s "%s" %s' % (Q_CMD, params, log_redirect)
         LOG.debug(u"Calling command %s" % cmd)
         retcode = subprocess.call(cmd, shell=True)
         if not retcode == 0:
