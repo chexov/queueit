@@ -12,22 +12,22 @@ LOG.setLevel(logging.DEBUG)
 
 
 # Loading values from the shell ENV
-QHOST = os.environ.get('QUEUEIT_HOST', DEFAULT_HOST)
+QHOST = os.environ.get('QUEUEIT_HOST', '127.0.0.1')
 QPORT = 11300
-QTIMEOUT = None
+QTIMEOUT = 0
 
 try:
-    QTTR = int(os.environ.get('QUEUEIT_TTR', DEFAULT_TTR))
+    QTTR = int(os.environ.get('QUEUEIT_TTR', 120))
 except ValueError:
     LOG.error("Incorect value for QUEUEIT_TTR. Using '%s' instead" % QTTR)
 
 try:
-    QPORT = int(os.environ.get('QUEUEIT_PORT', DEFAULT_PORT))
+    QPORT = int(os.environ.get('QUEUEIT_PORT', 11300))
 except ValueError:
     LOG.error("Incorect value for QUEUEIT_PORT. Using '%s' instead" % QPORT)
 
 try:
-    QTIMEOUT = int(os.environ.get('QUEUEIT_TIMEOUT', DEFAULT_PORT))
+    QTIMEOUT = int(os.environ.get('QUEUEIT_TIMEOUT', QTIMEOUT))
 except ValueError:
     LOG.error("Incorect value for QTIMEOUT. Using '%s' instead" % QTIMEOUT)
 
