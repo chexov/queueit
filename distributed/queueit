@@ -14,7 +14,7 @@ LOG.setLevel(logging.DEBUG)
 # Loading values from the shell ENV
 QHOST = os.environ.get('QUEUEIT_HOST', '127.0.0.1')
 QPORT = 11300
-QTIMEOUT = 0
+QTIMEOUT = None
 
 try:
     QTTR = int(os.environ.get('QUEUEIT_TTR', 120))
@@ -27,7 +27,9 @@ except ValueError:
     LOG.error("Incorect value for QUEUEIT_PORT. Using '%s' instead" % QPORT)
 
 try:
-    QTIMEOUT = int(os.environ.get('QUEUEIT_TIMEOUT', QTIMEOUT))
+    QTIMEOUT = os.environ.get('QUEUEIT_TIMEOUT', QTIMEOUT)
+    if QTIMEOUT:
+        QTIMEOUT = int(QTIMEOUT)
 except ValueError:
     LOG.error("Incorect value for QTIMEOUT. Using '%s' instead" % QTIMEOUT)
 
@@ -77,8 +79,8 @@ def qkick(tube_name, count=1, qconn=None):
 def qstat(qconn=None):
     if not qconn:
         qconn = _get_qconnection(QHOST, QPORT)
-    import pprint
-    pprint.pprint(qconn.stats())
+    #import pprint
+    #pprint.pprint(qconn.stats())
     LINE="%-19s %-8s %-8s %-8s"
     print LINE % ('tube', 'watching', 'buried', 'ready')
     tubes = qconn.tubes()
