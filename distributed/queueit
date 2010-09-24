@@ -2,23 +2,34 @@
 # encoding: utf-8
 import sys
 import os
+import logging
+
 from beanstalkc import *
+
+logging.basicConfig(level=logging.DEBUG, format=u'%(asctime)-15s %(name)-12s: %(levelname)-8s %(message)s')
+LOG = logging.getLogger('queueit')
+LOG.setLevel(logging.DEBUG)
 
 
 # Loading values from the shell ENV
 QHOST = os.environ.get('QUEUEIT_HOST', DEFAULT_HOST)
 QPORT = 11300
+QTIMEOUT = None
 
 try:
     QTTR = int(os.environ.get('QUEUEIT_TTR', DEFAULT_TTR))
 except ValueError:
-    print "Incorect value for QUEUEIT_TTR. Using '%s' instead" % QTTR
+    LOG.error("Incorect value for QUEUEIT_TTR. Using '%s' instead" % QTTR)
 
 try:
     QPORT = int(os.environ.get('QUEUEIT_PORT', DEFAULT_PORT))
 except ValueError:
-    print "Incorect value for QUEUEIT_PORT. Using '%s' instead" % QPORT
+    LOG.error("Incorect value for QUEUEIT_PORT. Using '%s' instead" % QPORT)
 
+try:
+    QTIMEOUT = int(os.environ.get('QUEUEIT_TIMEOUT', DEFAULT_PORT))
+except ValueError:
+    LOG.error("Incorect value for QTIMEOUT. Using '%s' instead" % QTIMEOUT)
 
 
 def _get_qconnection(host, port):
@@ -93,6 +104,38 @@ def qstat(qconn=None):
                    tube_stats.get('current-jobs-ready'))
 
 
+def qwrapper(tube_in, tube_out, worker_cmd):
+    import subprocess
+    qconn_in  = _get_qconnection(QHOST, QPORT)
+    qconn_out = _get_qconnection(QHOST, QPORT)
+    qconn_in.watch(tube_in)
+    qconn_out.use(tube_out)
+
+    LOG.info(u"Watching queues: %s" % qconn_in.watching())
+
+    while True:
+        job = qconn_in.reserve(timeout=QTIMEOUT)
+        if not job:
+            LOG.info(u"Timeout reached. Bye-bye")
+            sys.exit()
+        params = job.body
+
+        #log_id = uuid4().hex
+        #log_redirect = "> %s/%s.log 2>&1" % (LOG_DIR, log_id)
+        #cmd = '%s "%s" %s' % (Q_CMD, params, log_redirect)
+
+        cmd = '%s "%s"' % (worker_cmd, params)
+        LOG.debug(u"Calling command %s" % cmd)
+        retcode = subprocess.call(cmd, shell=True)
+        if not retcode == 0:
+            LOG.error(u"Worker command was exited with retcode %s" % retcode)
+            job.bury()
+            LOG.info(u"Job %s buried" % job.jid)
+        else:
+            jid = qconn_out.put(str(params))
+            job.delete()
+            LOG.info(u"New job put in to %s: %s" % (tube_out, jid))
+
 
 
 if __name__ == "__main__":
@@ -136,6 +179,11 @@ if __name__ == "__main__":
         qkick(args[0], count)
     elif COMMAND == 'q-stat':
         qstat()
+    elif COMMAND == 'q-wrapper':
+        if len(args) < 3:
+            print "q-wrapper usage: %s <queue-in> <queue-out> <cmd>" % (sys.argv[0])
+            print sys.exit(1)
+        qwrapper(args[0], args[1], args[2])
     else:
         print "Unknown command '%s'" % COMMAND
 
