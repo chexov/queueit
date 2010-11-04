@@ -12,8 +12,17 @@ Can be Usefull for the distributed tasks.
 [1] http://kr.github.com/beanstalkd/
 
 
+ENVIROMENT VARIABLES
+====================
 
-Using q-put and q-get
+You can redefine usefull variables in such way:
+export QUEUEIT_HOST=btd.local
+export QUEUEIT_PORT=11300
+export QUEUEIT_TIMEOUT=100
+export QUEUEIT_TTR=5000
+
+
+USING q-put AND q-get
 =====================
 1. Run the beanstalkd server
 beanstalkd -d
@@ -35,7 +44,7 @@ one
 
 
 
-Using q-wrapper
+USING q-wrapper
 ===============
 1. Run beanstalkd queue server:
 beanstalkd -d
