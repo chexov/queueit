@@ -191,10 +191,13 @@ if __name__ == "__main__":
         elif COMMAND == 'q-stat':
             qstat()
         elif COMMAND == 'q-wrapper':
-            if len(args) < 3:
-                print "Usage: %s <queue-in> <queue-out> <cmd>" % (COMMAND)
+            if len(args) == 2:
+                qwrapper(args[0], args[1], sys.stdin.readline())
+            elif len(args) == 3:
+                qwrapper(args[0], args[1], args[2])
+            else:
+                print "Usage: %s <queue-in> <queue-out> [<cmd>]\n <cmd> could be sent trough STDIN" % (COMMAND)
                 print sys.exit(1)
-            qwrapper(args[0], args[1], args[2])
         else:
             print "Unknown command '%s'" % COMMAND
     except KeyboardInterrupt:
