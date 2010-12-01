@@ -172,8 +172,6 @@ def qwrapperbatch(tube_in, tube_out, worker_cmd, batch_size=10):
 
 def qwrapper(tube_in, tube_out, worker_cmd):
     import subprocess
-    import os
-    _env = os.environ
     qconn_in  = _get_qconnection(QHOST, QPORT)
     qconn_out = _get_qconnection(QHOST, QPORT)
     qconn_in.watch(tube_in)
@@ -188,16 +186,15 @@ def qwrapper(tube_in, tube_out, worker_cmd):
             sys.exit()
         params = job.body
 
-        #log_id = uuid4().hex
-        #log_redirect = "> %s/%s.log 2>&1" % (LOG_DIR, log_id)
-        #cmd = '%s "%s" %s' % (Q_CMD, params, log_redirect)
+        # If we have {} inside the command, replace this with job payload. like xargs(1)
+        if u" ".join(worker_cmd).find('{}') > -1:
+            cmd = map(lambda arg: arg.replace('{}', job.body), worker_cmd)
+        else:
+            cmd = worker_cmd
+            cmd.append(job.body)
 
-        cmd = "%s %s" % (worker_cmd, params)
-        if worker_cmd.find('{}') >- 1:
-            cmd = worker_cmd.replace('{}', job.body)
-
-        LOG.debug(u"Calling command '%s'" % cmd)
-        retcode = subprocess.call(cmd, shell=True, env=_env)
+        LOG.debug(u"Calling command '%s'" % u" ".join(cmd))
+        retcode = subprocess.call(cmd)
         if not retcode == 0:
             LOG.error(u"Worker command '%s' was exited with retcode %s" % (cmd, retcode) )
             job.bury()
@@ -261,8 +258,8 @@ if __name__ == "__main__":
         elif COMMAND == 'q-wrapper':
             if len(args) == 2:
                 qwrapper(args[0], args[1], sys.stdin.readline())
-            elif len(args) == 3:
-                qwrapper(args[0], args[1], args[2])
+            elif len(args) >= 3:
+                qwrapper(args[0], args[1], worker_cmd=args[2:])
             else:
                 print "Usage: %s <queue-in> <queue-out> [<cmd>]\n <cmd> could be sent trough STDIN" % (COMMAND)
                 print sys.exit(1)
