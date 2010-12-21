@@ -151,9 +151,11 @@ def qwrapperbatch(tube_in, tube_out, worker_cmd, batch_size=10):
                     LOG.info(u"Timeout reached")
                 batch_jobs.append(job)
             except DeadlineSoon:
-                LOG.debug(u"Oops. Got DeadlineSoon. Touching reserved jobs..")
+                LOG.debug(u"Oops. Got DeadlineSoon. Do not waiting for queue to fill up..")
+                #LOG.debug(u"Oops. Got DeadlineSoon. Touching reserved jobs..")
                 map(lambda j: j.touch(), batch_jobs)
-                continue
+                break
+                #continue
 
         cmd.extend(map(lambda j: j.body, batch_jobs))
 
