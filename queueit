@@ -15,11 +15,17 @@ LOG.setLevel(logging.DEBUG)
 QHOST = os.environ.get('QUEUEIT_HOST', '127.0.0.1')
 QPORT = 11300
 QTIMEOUT = None
+QPRIORITY = os.environ.get('QUEUEIT_PRIORITY', beanstalkc.DEFAULT_PRIORITY)
 
 try:
     QTTR = int(os.environ.get('QUEUEIT_TTR', 120))
 except ValueError:
     LOG.error("Incorect value for QUEUEIT_TTR. Using '%s' instead" % QTTR)
+
+try:
+    QPRIORITY = int(os.environ.get('QUEUEIT_PRIORITY', beanstalkc.DEFAULT_PRIORITY))
+except ValueError:
+    LOG.error("Incorect value for QUEUEIT_PRIORITY. Using '%s' instead" % QPRIORITY)
 
 try:
     QPORT = int(os.environ.get('QUEUEIT_PORT', 11300))
@@ -64,7 +70,7 @@ def qput(tube_name, messages, qconn=None):
 
     for message in messages:
         qconn.use(tube_name)
-        jobid = qconn.put(str(message), ttr=QTTR)
+        jobid = qconn.put(str(message), ttr=QTTR, priority=QPRIORITY)
         print "OK: message=%s; tube=%s; job.id=%s; ttr=%s" % (message, tube_name, jobid, QTTR)
     qconn.close()
 
@@ -139,7 +145,7 @@ def qwrapper(tube_in, tube_out, worker_cmd):
             job.bury()
             LOG.info(u"Job %s buried" % job.jid)
         else:
-            jid = qconn_out.put(str(params))
+            jid = qconn_out.put(str(params), ttr=QTTR, priority=QPRIORITY)
             job.delete()
             LOG.info(u"New job put in to %s: %s" % (tube_out, jid))
 
