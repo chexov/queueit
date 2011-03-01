@@ -5,7 +5,9 @@ import os
 import logging
 import time
 
-from beanstalkc import *
+import beanstalkc
+
+from beanstalkc import * # TODO: remove it
 
 logging.basicConfig(level=logging.DEBUG, format=u'%(asctime)-15s %(name)-12s: %(levelname)-8s %(message)s')
 LOG = logging.getLogger('queueit')
