@@ -190,7 +190,7 @@ def qwrapper(tube_in, tube_out, worker_cmd):
     qconn_in.watch(tube_in)
     qconn_out.use(tube_out)
 
-    LOG.info(u"QHOST: %s, QPORT %s, TTR %s, Watching queues: %s" % (QHOST, QPORT, QTTR, qconn_in.watching()) )
+    LOG.info(u"QHOST: %s, QPORT %s, TTR %s, PRIORITY %s, Watching queues: %s" % (QHOST, QPORT, QTTR, QPRIORITY, qconn_in.watching()) )
     while True:
         job = qconn_in.reserve(timeout=QTIMEOUT)
         if not job:
