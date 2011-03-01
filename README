@@ -60,3 +60,19 @@ wget -c $URL -O $AVI
 
 q-wrapper download encode ./download.sh
 
+
+USING q-stat
+============
+q-stat shows tube size and other usefull numbers.
+You can say q-stat refresh statistics every n seconds and get dynamics of the queues:
+'q-stats 3' will give such output:
+tube                     watching      buried        ready
+default                  24    +1      0             0
+t-start                  3             124           570   -3
+stats                    1             3             0
+t-ir                     1             6             67    +2
+t-ip                     1             6             0
+t-upl                    0             0             9907
+t-t350                   1             0             0
+t-t1350                  1             0             0
+

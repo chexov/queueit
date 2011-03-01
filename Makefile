@@ -4,6 +4,7 @@ all:
 	make q-kick
 	make q-stat
 	make q-wrapper
+	make q-wrapper-batch
 
 q-get:
 	ln -s queueit q-get
@@ -19,4 +20,7 @@ q-stat:
 
 q-wrapper:
 	ln -s queueit q-wrapper
+
+q-wrapper-batch:
+	ln -s queueit q-wrapper-batch
 

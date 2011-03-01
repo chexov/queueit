@@ -3,6 +3,7 @@
 import sys
 import os
 import logging
+import time
 
 from beanstalkc import *
 
@@ -82,37 +83,59 @@ def qkick(tube_name, count=1, qconn=None):
     print qconn.kick(count)
 
 
-def qstat(qconn=None):
+def qstat(qconn=None, delay=None):
+    def compare_tubes(last, cur):
+        _cur = cur.copy()
+        for _k, _v in last.items():
+            try:
+                change = int(_cur[_k]) - int(_v)
+                if change > 0:
+                    change = "+%s" % change
+                elif change == 0:
+                    change = ""
+                _cur[_k] = "%-5s %s" % (_cur[_k], change)
+            except ValueError:
+                pass
+                # Not an number
+        return _cur
+
+    def compare_numbers(last, cur):
+        _cur = cur
+        change = int(_cur) - int(last)
+        if change > -1:
+            change = "+%s" % change
+        _cur = "%s %s" % (_cur, change)
+        return _cur
+
     if not qconn:
         qconn = _get_qconnection(QHOST, QPORT)
-    #import pprint
-    #pprint.pprint(qconn.stats())
-    LINE="%-19s %-8s %-8s %-8s"
-    print LINE % ('tube', 'watching', 'buried', 'ready')
-    tubes = qconn.tubes()
-    for tube in qconn.tubes():
-        if tube:
-           tube_stats = qconn.stats_tube(tube)
-           #{'cmd-pause-tube': 0,
-           # 'current-jobs-buried': 0,
-           # 'current-jobs-delayed': 0,
-           # 'current-jobs-ready': 0,
-           # 'current-jobs-reserved': 0,
-           # 'current-jobs-urgent': 0,
-           # 'current-using': 0,
-           # 'current-waiting': 1,
-           # 'current-watching': 1,
-           # 'name': 'object-extractor',
-           # 'pause': 0,
-           # 'pause-time-left': 0,
-           # 'total-jobs': 0}
-           print LINE % (tube,
-                   tube_stats.get('current-watching'),
-                   tube_stats.get('current-jobs-buried'),
-                   tube_stats.get('current-jobs-ready'))
+    tubes_stats_last = {}
+    while True:
+        LINE="%-24s %-13s %-13s %-13s"
+        print LINE % ('tube', 'watching', 'buried', 'ready')
+        tubes = qconn.tubes()
+        for tube in qconn.tubes():
+            if tube:
+                name = str(tube)
+                tube_stats_cur = qconn.stats_tube(tube)
+                if tubes_stats_last.get(name):
+                    tube_stats = compare_tubes(tubes_stats_last[name], tube_stats_cur)
+                else:
+                    tube_stats = tube_stats_cur
+
+                #tube_stats = qconn.stats_tube(tube)
+                print LINE % (name,
+                        tube_stats.get('current-watching'),
+                        tube_stats.get('current-jobs-buried'),
+                        tube_stats.get('current-jobs-ready'))
+                tubes_stats_last[name] = tube_stats_cur
+        if delay:
+            time.sleep(delay)
+        else:
+            return None
 
 
-def qwrapper(tube_in, tube_out, worker_cmd):
+def qwrapperbatch(tube_in, tube_out, worker_cmd, batch_size=10):
     import subprocess
     import os
     _env = os.environ
@@ -120,9 +143,54 @@ def qwrapper(tube_in, tube_out, worker_cmd):
     qconn_out = _get_qconnection(QHOST, QPORT)
     qconn_in.watch(tube_in)
     qconn_out.use(tube_out)
+    while True:
+        batch_jobs = []
+        cmd = []
+        cmd.extend(worker_cmd)
+
+        # Filling the pool
+        while len(batch_jobs) < batch_size:
+            LOG.debug(u"Filling up the job pool: %s jobs already. %s needed" % (len(batch_jobs), batch_size))
+            try:
+                job = qconn_in.reserve(timeout=QTIMEOUT)
+                if not job:
+                    LOG.info(u"Timeout reached")
+                batch_jobs.append(job)
+            except DeadlineSoon:
+                LOG.debug(u"Oops. Got DeadlineSoon. Do not waiting for queue to fill up..")
+                #LOG.debug(u"Oops. Got DeadlineSoon. Touching reserved jobs..")
+                map(lambda j: j.touch(), batch_jobs)
+                break
+                #continue
+
+        cmd.extend(map(lambda j: j.body, batch_jobs))
+
+        LOG.debug(u"Calling command %s...%s" % (u" ".join(cmd)[:30], u" ".join(cmd)[-15:]))
+        #LOG.debug(u"Calling command %s" % (u" ".join(cmd)))
+        retcode = subprocess.call(cmd)
+
+        if not retcode == 0:
+            def _bury(job):
+                job.bury()
+                LOG.info(u"Job %s buried" % job.jid)
+            map(_bury, batch_jobs)
+        else:
+            def _put(job):
+                jid = qconn_out.put(job.body)
+                print job.body
+                job.delete()
+                LOG.info(u"New job put in to %s: %s" % (tube_out, jid))
+            map(_put, batch_jobs)
+
+
+def qwrapper(tube_in, tube_out, worker_cmd):
+    import subprocess
+    qconn_in  = _get_qconnection(QHOST, QPORT)
+    qconn_out = _get_qconnection(QHOST, QPORT)
+    qconn_in.watch(tube_in)
+    qconn_out.use(tube_out)
 
     LOG.info(u"QHOST: %s, QPORT %s, TTR %s, Watching queues: %s" % (QHOST, QPORT, QTTR, qconn_in.watching()) )
-
     while True:
         job = qconn_in.reserve(timeout=QTIMEOUT)
         if not job:
@@ -130,16 +198,15 @@ def qwrapper(tube_in, tube_out, worker_cmd):
             sys.exit()
         params = job.body
 
-        #log_id = uuid4().hex
-        #log_redirect = "> %s/%s.log 2>&1" % (LOG_DIR, log_id)
-        #cmd = '%s "%s" %s' % (Q_CMD, params, log_redirect)
+        # If we have {} inside the command, replace this with job payload. like xargs(1)
+        if u" ".join(worker_cmd).find('{}') > -1:
+            cmd = map(lambda arg: arg.replace('{}', job.body), worker_cmd)
+        else:
+            cmd = list(worker_cmd)
+            cmd.append(job.body)
 
-        cmd = "%s %s" % (worker_cmd, params)
-        if worker_cmd.find('{}') >- 1:
-            cmd = worker_cmd.replace('{}', job.body)
-
-        LOG.debug(u"Calling command '%s'" % cmd)
-        retcode = subprocess.call(cmd, shell=True, env=_env)
+        LOG.debug(u"Calling command '%s'" % u" ".join(cmd))
+        retcode = subprocess.call(cmd)
         if not retcode == 0:
             LOG.error(u"Worker command '%s' was exited with retcode %s" % (cmd, retcode) )
             job.bury()
@@ -163,6 +230,7 @@ if __name__ == "__main__":
                 print "%s q-kick" % COMMAND
                 print "%s q-stat" % COMMAND
                 print "%s q-wrapper" % COMMAND
+                print "%s q-wrapper-batch" % COMMAND
                 sys.exit(1)
             else:
                 COMMAND = os.path.basename(sys.argv[1])
@@ -195,12 +263,22 @@ if __name__ == "__main__":
                     print "Wrong count value '%s'. Using default %s" % (args[1], count)
             qkick(args[0], count)
         elif COMMAND == 'q-stat':
-            qstat()
+            if len(args) == 1:
+                qstat(delay=int(args[0]))
+            else:
+                qstat()
         elif COMMAND == 'q-wrapper':
-            if len(args) < 3:
-                print "Usage: %s <queue-in> <queue-out> <cmd>" % (COMMAND)
+            if len(args) >= 3:
+                qwrapper(args[0], args[1], worker_cmd=args[2:])
+            else:
+                print "Usage: %s <queue-in> <queue-out> [<cmd>]\n <cmd> could be sent trough STDIN" % (COMMAND)
                 print sys.exit(1)
-            qwrapper(args[0], args[1], args[2])
+        elif COMMAND == 'q-wrapper-batch':
+            if len(args) >= 4:
+                qwrapperbatch(args[0], args[1], worker_cmd=args[3:], batch_size=int(args[2]))
+            else:
+                print "Usage: %s <queue-in> <queue-out> <batch-size> <cmd>" % (COMMAND)
+                print sys.exit(1)
         else:
             print "Unknown command '%s'" % COMMAND
     except KeyboardInterrupt:
