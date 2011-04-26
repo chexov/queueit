@@ -116,7 +116,8 @@ def qstat(qconn=None, delay=None):
         LINE="%-24s %-13s %-13s %-13s"
         print LINE % ('tube', 'watching', 'buried', 'ready')
         tubes = qconn.tubes()
-        for tube in qconn.tubes():
+        tubes.sort()
+        for tube in tubes:
             if tube:
                 name = str(tube)
                 tube_stats_cur = qconn.stats_tube(tube)
