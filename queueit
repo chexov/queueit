@@ -5,7 +5,9 @@ import os
 import logging
 import time
 
-from beanstalkc import *
+import beanstalkc
+
+from beanstalkc import * # TODO: remove it
 
 logging.basicConfig(level=logging.DEBUG, format=u'%(asctime)-15s %(name)-12s: %(levelname)-8s %(message)s')
 LOG = logging.getLogger('queueit')
@@ -16,11 +18,17 @@ LOG.setLevel(logging.DEBUG)
 QHOST = os.environ.get('QUEUEIT_HOST', '127.0.0.1')
 QPORT = 11300
 QTIMEOUT = None
+QPRIORITY = os.environ.get('QUEUEIT_PRIORITY', beanstalkc.DEFAULT_PRIORITY)
 
 try:
     QTTR = int(os.environ.get('QUEUEIT_TTR', 120))
 except ValueError:
     LOG.error("Incorect value for QUEUEIT_TTR. Using '%s' instead" % QTTR)
+
+try:
+    QPRIORITY = int(os.environ.get('QUEUEIT_PRIORITY', beanstalkc.DEFAULT_PRIORITY))
+except ValueError:
+    LOG.error("Incorect value for QUEUEIT_PRIORITY. Using '%s' instead" % QPRIORITY)
 
 try:
     QPORT = int(os.environ.get('QUEUEIT_PORT', 11300))
@@ -65,8 +73,8 @@ def qput(tube_name, messages, qconn=None):
 
     for message in messages:
         qconn.use(tube_name)
-        jobid = qconn.put(str(message), ttr=QTTR)
-        print "OK: message=%s; tube=%s; job.id=%s; ttr=%s" % (message, tube_name, jobid, QTTR)
+        jobid = qconn.put(str(message), ttr=QTTR, priority=QPRIORITY)
+        print "OK: message=%s; tube=%s; job.id=%s; ttr=%s; priority=%s" % (message, tube_name, jobid, QTTR, QPRIORITY)
     qconn.close()
 
 
@@ -108,7 +116,8 @@ def qstat(qconn=None, delay=None):
         LINE="%-24s %-13s %-13s %-13s"
         print LINE % ('tube', 'watching', 'buried', 'ready')
         tubes = qconn.tubes()
-        for tube in qconn.tubes():
+        tubes.sort()
+        for tube in tubes:
             if tube:
                 name = str(tube)
                 tube_stats_cur = qconn.stats_tube(tube)
@@ -184,7 +193,7 @@ def qwrapper(tube_in, tube_out, worker_cmd):
     qconn_in.watch(tube_in)
     qconn_out.use(tube_out)
 
-    LOG.info(u"QHOST: %s, QPORT %s, TTR %s, Watching queues: %s" % (QHOST, QPORT, QTTR, qconn_in.watching()) )
+    LOG.info(u"QHOST: %s, QPORT %s, TTR %s, PRIORITY %s, Watching queues: %s" % (QHOST, QPORT, QTTR, QPRIORITY, qconn_in.watching()) )
     while True:
         job = qconn_in.reserve(timeout=QTIMEOUT)
         if not job:
@@ -199,14 +208,14 @@ def qwrapper(tube_in, tube_out, worker_cmd):
             cmd = list(worker_cmd)
             cmd.append(job.body)
 
-        LOG.debug(u"Calling command '%s'" % u" ".join(cmd))
+        LOG.debug(u"Calling command '%s'" % cmd)
         retcode = subprocess.call(cmd)
         if not retcode == 0:
             LOG.error(u"Worker command '%s' was exited with retcode %s" % (cmd, retcode) )
             job.bury()
             LOG.info(u"Job %s buried" % job.jid)
         else:
-            jid = qconn_out.put(str(params))
+            jid = qconn_out.put(str(params), ttr=QTTR, priority=QPRIORITY)
             job.delete()
             LOG.info(u"New job put in to %s: %s" % (tube_out, jid))
 
