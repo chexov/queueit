@@ -27,6 +27,7 @@ except ValueError:
 
 try:
     QPRIORITY = int(os.environ.get('QUEUEIT_PRIORITY', beanstalkc.DEFAULT_PRIORITY))
+    print "QUEUEIT_PRIORITY is set to", QPRIORITY
 except ValueError:
     LOG.error("Incorect value for QUEUEIT_PRIORITY. Using '%s' instead" % QPRIORITY)
 
@@ -215,9 +216,10 @@ def qwrapper(tube_in, tube_out, worker_cmd):
             job.bury()
             LOG.info(u"Job %s buried" % job.jid)
         else:
-            jid = qconn_out.put(str(params), ttr=QTTR, priority=QPRIORITY)
+            if tube_out != "null":
+                jid = qconn_out.put(str(params), ttr=QTTR, priority=QPRIORITY)
+                LOG.info(u"New job put in to %s: %s" % (tube_out, jid))
             job.delete()
-            LOG.info(u"New job put in to %s: %s" % (tube_out, jid))
 
 
 
