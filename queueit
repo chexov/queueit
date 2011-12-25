@@ -27,6 +27,7 @@ except ValueError:
 
 try:
     QPRIORITY = int(os.environ.get('QUEUEIT_PRIORITY', beanstalkc.DEFAULT_PRIORITY))
+    print "QUEUEIT_PRIORITY is set to", QPRIORITY
 except ValueError:
     LOG.error("Incorect value for QUEUEIT_PRIORITY. Using '%s' instead" % QPRIORITY)
 
@@ -186,6 +187,49 @@ def qwrapperbatch(tube_in, tube_out, worker_cmd, batch_size=10):
             map(_put, batch_jobs)
 
 
+def qcleanup(qname):
+    qconn  = _get_qconnection(QHOST, QPORT)
+    print "Cleaninig up", qconn.use(qname)
+    while True:
+        job = qconn.peek_buried()
+        if not job:
+            break
+        print "Deleting:", job.jid, job.body
+        job.delete()
+
+
+# FIXME: this is copypaste from local draft. not working. should be fixed
+def qwrapperwithstats():
+        stattistics_queue_name = sys.argv[1]
+        obj_id = sys.argv[2]
+        command = u" ".join(sys.argv[3:])
+
+        QUEUESTATS_CONN = get_qconn_or_die(HOST,PORT)
+        QUEUESTATS_CONN.use(stattistics_queue_name)
+
+        log_id = "%s.%s" % (socket.gethostname(), uuid4().hex)
+
+        log_redirect = " > %s/%s.log 2>&1" % (LOG_DIR, log_id)
+        cmd = u"".join([command, log_redirect])
+
+        LOG.debug(u"Calling command %s" % cmd)
+        time_started = int(time.time())
+        retcode = subprocess.call(cmd, shell=True)
+        time_duration = int(time.time()) - time_started
+        LOG.info(u"Exit code is %s" % retcode)
+
+
+        task_stats = {'obj_id': obj_id,
+                      'duration': time_duration,
+                      'started': time_started,
+                      'worker': command,
+                      'ecode': retcode,
+                      'log_id': log_id }
+        QUEUESTATS_CONN.put(json.dumps(task_stats))
+        LOG.info(u"Task statistics: %s" % json.dumps(task_stats))
+        sys.exit(retcode)
+
+
 def qwrapper(tube_in, tube_out, worker_cmd):
     import subprocess
     qconn_in  = _get_qconnection(QHOST, QPORT)
@@ -216,9 +260,10 @@ def qwrapper(tube_in, tube_out, worker_cmd):
             job.bury()
             LOG.info(u"Job %s buried" % job.jid)
         else:
-            jid = qconn_out.put(str(params), ttr=QTTR, priority=QPRIORITY)
+            if tube_out != "null":
+                jid = qconn_out.put(str(params), ttr=QTTR, priority=QPRIORITY)
+                LOG.info(u"New job put in to %s: %s" % (tube_out, jid))
             job.delete()
-            LOG.info(u"New job put in to %s: %s" % (tube_out, jid))
 
 
 
@@ -235,6 +280,7 @@ if __name__ == "__main__":
                 print "%s q-stat" % COMMAND
                 print "%s q-wrapper" % COMMAND
                 print "%s q-wrapper-batch" % COMMAND
+                print "%s q-wrapper-with-stats" % COMMAND
                 sys.exit(1)
             else:
                 COMMAND = os.path.basename(sys.argv[1])
@@ -277,12 +323,25 @@ if __name__ == "__main__":
             else:
                 print "Usage: %s <queue-in> <queue-out> [<cmd>]\n <cmd> could be sent trough STDIN" % (COMMAND)
                 print sys.exit(1)
+        elif COMMAND == 'q-wrapper-with-stats':
+            if len(args) == 4:
+                qwrapperwithstats(stats_queue_name, job_id, command)
+            else:
+                print "Usage: %s <statistics-queue> <job_id> <cmd>" % (COMMAND)
+                print sys.exit(1)
         elif COMMAND == 'q-wrapper-batch':
             if len(args) >= 4:
                 qwrapperbatch(args[0], args[1], worker_cmd=args[3:], batch_size=int(args[2]))
             else:
                 print "Usage: %s <queue-in> <queue-out> <batch-size> <cmd>" % (COMMAND)
                 print sys.exit(1)
+        elif COMMAND == 'q-cleanup':
+            if len(args) == 1:
+                qcleanup(args[0])
+            else:
+                print "Usage: %s <queue>" % (COMMAND)
+                print sys.exit(1)
+
         else:
             print "Unknown command '%s'" % COMMAND
     except KeyboardInterrupt:
