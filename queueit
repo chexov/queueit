@@ -208,7 +208,8 @@ def qwrapper(tube_in, tube_out, worker_cmd):
             cmd = list(worker_cmd)
             cmd.append(job.body)
 
-        LOG.debug(u"Calling command '%s'" % cmd)
+        LOG.info(u"Got job {0}".format(job.stats()))
+        LOG.info(u"Calling command '%s'" % cmd)
         retcode = subprocess.call(cmd)
         if not retcode == 0:
             LOG.error(u"Worker command '%s' was exited with retcode %s" % (cmd, retcode) )
