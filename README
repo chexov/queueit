@@ -1,13 +1,9 @@
 INTRODUCTION
 ============
 
-Queueit is a CLI interface tools
-which helps to talk with beanstalkd[1] service
-from the unix shell.
-
-Primary goal of this tools is
-to create simple and usefull interface inside the unix shell.
-Can be Usefull for the distributed tasks.
+Queueit is a CLI interface tool
+which helps to integrate beanstalkd[1] queue service into my shell scripts.
+This could be usefull for the cloud processing or task paralelling.
 
 [1] http://kr.github.com/beanstalkd/
 
@@ -15,7 +11,7 @@ Can be Usefull for the distributed tasks.
 ENVIROMENT VARIABLES
 ====================
 
-You can redefine usefull variables in such way:
+You can redefine variables in a such way:
 export QUEUEIT_HOST=btd.local
 export QUEUEIT_PORT=11300
 export QUEUEIT_TIMEOUT=100
@@ -30,13 +26,16 @@ beanstalkd -d
 2. Push new tasks to process
 q-put todownload "http://site.com/video1.avi" "http://video2.avi"
 
-3. Run workers in the cloud
+3. Run workers in the cloud nodes
+
+# Downloading files using wget and putting task into 'encoding' queue
 while true; do
    url=$(q-get todownload);
    wget -c $url -O $$.out
    q-put toencode $$.out
 done
 
+# Get task from the 'encoding' queue and encode video file using HandbrakeCLI
 while true; do
    in_file=$(q-get toencode)
    HandbrakeCLI -i $in_file -o ${in_file%.avi}.mp4
@@ -50,22 +49,15 @@ USING q-wrapper
 beanstalkd -d
 
 2. Push new task
-q-put download "URL='http://site.com/video1.avi';AVI='video1.avi';MP4='video1.mp4'"
+q-put download "http://site.com/video1.avi"
 
 3. Run q-wrapper to process the tasks
-cat > download.sh
-#!/bin/sh
-eval $1
-wget -c $URL -O $AVI
-
-q-wrapper download encode ./download.sh
+q-wrapper download encode wget {}
 
 
 USING q-stat
 ============
-q-stat shows tube size and other usefull numbers.
-You can say q-stat refresh statistics every n seconds and get dynamics of the queues:
-'q-stats 3' will give such output:
+q-stat shows nubmer of ready and buried tasks per queue
 tube                     watching      buried        ready
 default                  24    +1      0             0
 t-start                  3             124           570   -3
