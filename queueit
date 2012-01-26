@@ -27,6 +27,7 @@ except ValueError:
 
 try:
     QPRIORITY = int(os.environ.get('QUEUEIT_PRIORITY', beanstalkc.DEFAULT_PRIORITY))
+    print "QUEUEIT_PRIORITY is set to", QPRIORITY
 except ValueError:
     LOG.error("Incorect value for QUEUEIT_PRIORITY. Using '%s' instead" % QPRIORITY)
 
@@ -186,6 +187,17 @@ def qwrapperbatch(tube_in, tube_out, worker_cmd, batch_size=10):
             map(_put, batch_jobs)
 
 
+def qcleanup(qname):
+    qconn  = _get_qconnection(QHOST, QPORT)
+    print "Cleaninig up", qconn.use(qname)
+    while True:
+        job = qconn.peek_buried()
+        if not job:
+            break
+        print "Deleting:", job.jid, job.body
+        job.delete()
+
+
 # FIXME: this is copypaste from local draft. not working. should be fixed
 def qwrapperwithstats():
         stattistics_queue_name = sys.argv[1]
@@ -240,16 +252,18 @@ def qwrapper(tube_in, tube_out, worker_cmd):
             cmd = list(worker_cmd)
             cmd.append(job.body)
 
-        LOG.debug(u"Calling command '%s'" % cmd)
+        LOG.info(u"Got job {0}".format(job.stats()))
+        LOG.info(u"Calling command '%s'" % cmd)
         retcode = subprocess.call(cmd)
         if not retcode == 0:
             LOG.error(u"Worker command '%s' was exited with retcode %s" % (cmd, retcode) )
             job.bury()
             LOG.info(u"Job %s buried" % job.jid)
         else:
-            jid = qconn_out.put(str(params), ttr=QTTR, priority=QPRIORITY)
+            if tube_out != "null":
+                jid = qconn_out.put(str(params), ttr=QTTR, priority=QPRIORITY)
+                LOG.info(u"New job put in to %s: %s" % (tube_out, jid))
             job.delete()
-            LOG.info(u"New job put in to %s: %s" % (tube_out, jid))
 
 
 
@@ -321,6 +335,13 @@ if __name__ == "__main__":
             else:
                 print "Usage: %s <queue-in> <queue-out> <batch-size> <cmd>" % (COMMAND)
                 print sys.exit(1)
+        elif COMMAND == 'q-cleanup':
+            if len(args) == 1:
+                qcleanup(args[0])
+            else:
+                print "Usage: %s <queue>" % (COMMAND)
+                print sys.exit(1)
+
         else:
             print "Unknown command '%s'" % COMMAND
     except KeyboardInterrupt:

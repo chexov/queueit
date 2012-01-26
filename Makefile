@@ -5,6 +5,7 @@ all:
 	make q-stat
 	make q-wrapper
 	make q-wrapper-batch
+	make q-cleanup
 
 q-get:
 	ln -s queueit q-get
@@ -24,3 +25,5 @@ q-wrapper:
 q-wrapper-batch:
 	ln -s queueit q-wrapper-batch
 
+q-cleanup:
+	ln -s queueit q-cleanup
