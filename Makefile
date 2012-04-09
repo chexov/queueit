@@ -8,22 +8,22 @@ all:
 	make q-cleanup
 
 q-get:
-	ln -s queueit q-get
+	ln -s queueit/__init__.py q-get
 
 q-put:
-	ln -s queueit q-put
+	ln -s queueit/__init__.py q-put
 
 q-kick:
-	ln -s queueit q-kick
+	ln -s queueit/__init__.py q-kick
 
 q-stat:
-	ln -s queueit q-stat
+	ln -s queueit/__init__.py q-stat
 
 q-wrapper:
-	ln -s queueit q-wrapper
+	ln -s queueit/__init__.py q-wrapper
 
 q-wrapper-batch:
-	ln -s queueit q-wrapper-batch
+	ln -s queueit/__init__.py q-wrapper-batch
 
 q-cleanup:
-	ln -s queueit q-cleanup
+	ln -s queueit/__init__.py q-cleanup
