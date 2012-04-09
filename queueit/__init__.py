@@ -266,8 +266,7 @@ def qwrapper(tube_in, tube_out, worker_cmd):
             job.delete()
 
 
-
-if __name__ == "__main__":
+def main():
     try:
         COMMAND = os.path.basename(sys.argv[0])
         args = sys.argv[1:]
@@ -347,3 +346,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print "Keyboard Interrupt. Bye-bye"
 
+
+if __name__ == "__main__":
+    main()
