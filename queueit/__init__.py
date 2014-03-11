@@ -23,25 +23,25 @@ QPRIORITY = os.environ.get('QUEUEIT_PRIORITY', beanstalkc.DEFAULT_PRIORITY)
 try:
     QTTR = int(os.environ.get('QUEUEIT_TTR', 120))
 except ValueError:
-    LOG.error("Incorect value for QUEUEIT_TTR. Using '%s' instead" % QTTR)
+    LOG.error("Incorrect value for QUEUEIT_TTR. Using '%s' instead" % QTTR)
 
 try:
     QPRIORITY = int(os.environ.get('QUEUEIT_PRIORITY', beanstalkc.DEFAULT_PRIORITY))
     print "QUEUEIT_PRIORITY is set to", QPRIORITY
 except ValueError:
-    LOG.error("Incorect value for QUEUEIT_PRIORITY. Using '%s' instead" % QPRIORITY)
+    LOG.error("Incorrect value for QUEUEIT_PRIORITY. Using '%s' instead" % QPRIORITY)
 
 try:
     QPORT = int(os.environ.get('QUEUEIT_PORT', 11300))
 except ValueError:
-    LOG.error("Incorect value for QUEUEIT_PORT. Using '%s' instead" % QPORT)
+    LOG.error("Incorrect value for QUEUEIT_PORT. Using '%s' instead" % QPORT)
 
 try:
     QTIMEOUT = os.environ.get('QUEUEIT_TIMEOUT', QTIMEOUT)
     if QTIMEOUT:
         QTIMEOUT = int(QTIMEOUT)
 except ValueError:
-    LOG.error("Incorect value for QTIMEOUT. Using '%s' instead" % QTIMEOUT)
+    LOG.error("Incorrect value for QTIMEOUT. Using '%s' instead" % QTIMEOUT)
 
 
 def _get_qconnection(host, port):
@@ -56,7 +56,7 @@ def qget(tube_name, qconn=None):
     """
     Reserving job from the tube, printing the job.body and deleting that job.
     Be aware that job is already gone from the beanstalkd standpoint
-    and operator have to deal with it.
+    and operator must deal with it.
     """
     if not qconn:
         qconn = _get_qconnection(QHOST, QPORT)
@@ -161,7 +161,7 @@ def qwrapperbatch(tube_in, tube_out, worker_cmd, batch_size=10):
                     LOG.info(u"Timeout reached")
                 batch_jobs.append(job)
             except DeadlineSoon:
-                LOG.debug(u"Oops. Got DeadlineSoon. Do not waiting for queue to fill up..")
+                LOG.debug(u"Oops. Got DeadlineSoon. Not waiting for queue to fill up..")
                 #LOG.debug(u"Oops. Got DeadlineSoon. Touching reserved jobs..")
                 map(lambda j: j.touch(), batch_jobs)
                 break
