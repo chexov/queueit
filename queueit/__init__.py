@@ -114,7 +114,7 @@ def qstat(qconn=None, delay=None):
         qconn = _get_qconnection(QHOST, QPORT)
     tubes_stats_last = {}
     while True:
-        LINE="%-24s %-10s %-10s %-10s %-10s %-10s-"
+        LINE="%-24s %-10s %-10s %-10s %-10s %-10s"
         print LINE % ('tube', 'watching', 'buried', 'ready', 'delayed', 'reserved')
         tubes = qconn.tubes()
         tubes.sort()
