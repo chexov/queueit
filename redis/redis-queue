@@ -1,0 +1,61 @@
+#!/bin/sh
+
+r="redis-cli --raw"
+
+test $# -ge 1 || {
+    echo "Usage: $0 get <queue> [<timeout>]"
+    echo "Usage: $0 put <queue> <payload>"
+    echo "Usage: $0 worker <in-queue> <out-queue> <err-queue> <command>"
+
+    exit 1
+}
+
+set -ue
+command=$1; shift;
+
+case ${command} in
+    put)
+    in=$1; shift;
+    $r LPUSH "$in" "$*"
+    ;;
+
+
+    get)
+    in=$1;
+    timeout=${2:-10}
+    $r BRPOP "$in" "${timeout}"
+    ;;
+
+
+    worker)
+    inq=$1;
+    outq=$2;
+    errq=$3;
+    command=$4
+
+    while true; do
+        job=$($r BRPOPLPUSH $inq $inq.process 0);
+        echo "GOT JOB: $job";
+
+        command=$(echo "$command" | sed -e "s/{}/$job/g")
+        echo "# command is: '$command'"
+        ( sh -c "$command $job" ) && {
+            echo "OK: $job";
+            $r LREM "$inq.process" -1 "$job";
+            $r LPUSH $outq "$job";
+            continue;
+        };
+
+        echo "FAILED: $? $job";
+        $r LPUSH $errq "$job";
+        sleep 2;
+    done
+    ;;
+
+
+    *)
+    echo "You drunk. No such command ${command}"
+    ;;
+esac
+
+
