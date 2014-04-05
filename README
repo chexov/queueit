@@ -7,6 +7,8 @@ This could be usefull for the cloud processing or task paralelling.
 
 [1] http://kr.github.com/beanstalkd/
 
+I am also using redis-server in one of the projects so there are scripts which
+will do the same for redis backend. Please check redis/redis-queue script.
 
 ENVIROMENT VARIABLES
 ====================
