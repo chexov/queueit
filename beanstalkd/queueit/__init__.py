@@ -27,7 +27,6 @@ except ValueError:
 
 try:
     QPRIORITY = int(os.environ.get('QUEUEIT_PRIORITY', beanstalkc.DEFAULT_PRIORITY))
-    print "QUEUEIT_PRIORITY is set to", QPRIORITY
 except ValueError:
     LOG.error("Incorrect value for QUEUEIT_PRIORITY. Using '%s' instead" % QPRIORITY)
 
