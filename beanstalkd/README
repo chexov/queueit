@@ -1,0 +1,8 @@
+INSTALL
+=======
+Run these commands to make it happend.
+
+make
+python setup.py build
+python setup.py install
+
