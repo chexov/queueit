@@ -1,2 +1,14 @@
 *.pyc
 q-*
+
+# build artifacts
+build/
+dist/
+*.egg-info/
+
+# virtualenvs
+venv/
+ve/
+
+# misc
+.DS_Store
