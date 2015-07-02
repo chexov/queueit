@@ -267,6 +267,32 @@ def qwrapper(tube_in, tube_out, worker_cmd):
             job.delete()
 
 
+def qpeeknext(qname, peek_type):
+    '''
+    peeks at the next job in a tube
+    '''
+    qconn  = _get_qconnection(QHOST, QPORT)
+    print "Peeking at next %s job in queue" % peek_type, qconn.use(qname)
+    job = getattr(qconn, 'peek_%s' % peek_type)()
+    if not job:
+        print 'No %s jobs in %s' % (peek_type, qname)
+        return
+    print job.jid, job.body
+
+
+def qpeekjob(jid):
+    '''
+    peeks at the next job in a tube
+    '''
+    qconn  = _get_qconnection(QHOST, QPORT)
+    print "Peeking at job_id %s" % jid
+    job = qconn.peek(int(jid))
+    if not job:
+        print 'Job %s not found' % jid
+        return
+    print job.jid, job.body
+
+
 def main():
     try:
         COMMAND = os.path.basename(sys.argv[0])
@@ -281,6 +307,10 @@ def main():
                 print "%s q-wrapper" % COMMAND
                 print "%s q-wrapper-batch" % COMMAND
                 print "%s q-wrapper-with-stats" % COMMAND
+                print "%s q-peek" % COMMAND
+                print "%s q-peek-ready" % COMMAND
+                print "%s q-peek-delayed" % COMMAND
+                print "%s q-peek-buried" % COMMAND
                 sys.exit(1)
             else:
                 COMMAND = os.path.basename(sys.argv[1])
@@ -338,6 +368,30 @@ def main():
         elif COMMAND == 'q-cleanup':
             if len(args) == 1:
                 qcleanup(args[0])
+            else:
+                print "Usage: %s <queue>" % (COMMAND)
+                print sys.exit(1)
+        elif COMMAND == 'q-peek':
+            if len(args) == 1:
+                qpeekjob(args[0])
+            else:
+                print "Usage: %s <job_id>" % (COMMAND)
+                print sys.exit(1)
+        elif COMMAND == 'q-peek-ready':
+            if len(args) == 1:
+                qpeeknext(args[0], peek_type="ready")
+            else:
+                print "Usage: %s <queue>" % (COMMAND)
+                print sys.exit(1)
+        elif COMMAND == 'q-peek-delayed':
+            if len(args) == 1:
+                qpeeknext(args[0], peek_type="delayed")
+            else:
+                print "Usage: %s <queue>" % (COMMAND)
+                print sys.exit(1)
+        elif COMMAND == 'q-peek-buried':
+            if len(args) == 1:
+                qpeeknext(args[0], peek_type="buried")
             else:
                 print "Usage: %s <queue>" % (COMMAND)
                 print sys.exit(1)
