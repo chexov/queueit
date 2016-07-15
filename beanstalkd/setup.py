@@ -17,7 +17,8 @@ setup(
             'q-kick = queueit:main',
             'q-put = queueit:main',
             'q-stat = queueit:main',
-            'q-wrapper = queueit:main'
+            'q-wrapper = queueit:main',
+            'q-cleanup = queueit:main'
         ]
     }
 )
