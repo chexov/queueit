@@ -13,4 +13,5 @@ ve/
 # misc
 .DS_Store
 
+# IDE love
 .idea/
