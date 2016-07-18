@@ -188,15 +188,20 @@ def qwrapperbatch(tube_in, tube_out, worker_cmd, batch_size=10):
             map(_put, batch_jobs)
 
 
-def qcleanup(qname):
-    qconn  = _get_qconnection(QHOST, QPORT)
-    print "Cleaninig up", qconn.use(qname)
+def qcleanup(qname, peek_type):
+    qconn = _get_qconnection(QHOST, QPORT)
+    print "Cleaning up", qconn.use(qname)
     while True:
-        job = qconn.peek_buried()
-        if not job:
-            break
-        print "Deleting:", job.jid, job.body
-        job.delete()
+        try:
+            job = getattr(qconn, 'peek_%s' % peek_type)()
+        except AttributeError:
+            print "Invalid peek type: %s. Allowed peek types: ready, delayed, buried." % peek_type
+            sys.exit(1)
+        else:
+            if not job:
+                break
+            print "Deleting:", job.jid, job.body
+            job.delete()
 
 
 # FIXME: this is copypaste from local draft. not working. should be fixed
@@ -366,10 +371,10 @@ def main():
                 print "Usage: %s <queue-in> <queue-out> <batch-size> <cmd>" % (COMMAND)
                 print sys.exit(1)
         elif COMMAND == 'q-cleanup':
-            if len(args) == 1:
-                qcleanup(args[0])
+            if len(args) == 2:
+                qcleanup(args[0], args[1])
             else:
-                print "Usage: %s <queue>" % (COMMAND)
+                print "Usage: %s <queue> <peek_type>" % (COMMAND)
                 print sys.exit(1)
         elif COMMAND == 'q-peek':
             if len(args) == 1:

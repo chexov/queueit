@@ -12,3 +12,5 @@ ve/
 
 # misc
 .DS_Store
+
+.idea/
