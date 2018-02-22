@@ -47,7 +47,7 @@ def _get_qconnection(host, port):
     try:
         return Connection(host=host, port=port)
     except SocketError:
-        print "Can't connect to %s:%s" % (host, port)
+        print ("Can't connect to %s:%s" % (host, port))
         sys.exit(1)
 
 
@@ -62,7 +62,7 @@ def qget(tube_name, qconn=None):
 
     qconn.watch(tube_name)
     job = qconn.reserve()
-    print job.body
+    print (job.body)
     job.delete()
     qconn.close()
 
@@ -74,7 +74,7 @@ def qput(tube_name, messages, qconn=None):
     for message in messages:
         qconn.use(tube_name)
         jobid = qconn.put(str(message), ttr=QTTR, priority=QPRIORITY)
-        print "OK: message=%s; tube=%s; job.id=%s; ttr=%s; priority=%s" % (message, tube_name, jobid, QTTR, QPRIORITY)
+        print ("OK: message=%s; tube=%s; job.id=%s; ttr=%s; priority=%s" % (message, tube_name, jobid, QTTR, QPRIORITY))
     qconn.close()
 
 
@@ -82,7 +82,7 @@ def qkick(tube_name, count=1, qconn=None):
     if not qconn:
         qconn = _get_qconnection(QHOST, QPORT)
     qconn.use(tube_name)
-    print qconn.kick(count)
+    print (qconn.kick(count))
 
 
 def qstat(qconn=None, delay=None):
@@ -114,7 +114,7 @@ def qstat(qconn=None, delay=None):
     tubes_stats_last = {}
     while True:
         LINE="%-24s %-10s %-10s %-10s %-10s %-10s"
-        print LINE % ('tube', 'watching', 'buried', 'ready', 'delayed', 'reserved')
+        print (LINE % ('tube', 'watching', 'buried', 'ready', 'delayed', 'reserved'))
         tubes = qconn.tubes()
         tubes.sort()
         for tube in tubes:
@@ -127,12 +127,12 @@ def qstat(qconn=None, delay=None):
                     tube_stats = tube_stats_cur
 
                 #tube_stats = qconn.stats_tube(tube)
-                print LINE % (name,
+                print (LINE % (name,
                         tube_stats.get('current-watching'),
                         tube_stats.get('current-jobs-buried'),
                         tube_stats.get('current-jobs-ready'),
                         tube_stats.get('current-jobs-delayed'),
-                        tube_stats.get('current-jobs-reserved'))
+                        tube_stats.get('current-jobs-reserved')))
                 tubes_stats_last[name] = tube_stats_cur
         if delay:
             time.sleep(delay)
@@ -182,7 +182,7 @@ def qwrapperbatch(tube_in, tube_out, worker_cmd, batch_size=10):
         else:
             def _put(job):
                 jid = qconn_out.put(job.body)
-                print job.body
+                print (job.body)
                 job.delete()
                 LOG.info(u"New job put in to %s: %s" % (tube_out, jid))
             map(_put, batch_jobs)
@@ -190,17 +190,17 @@ def qwrapperbatch(tube_in, tube_out, worker_cmd, batch_size=10):
 
 def qcleanup(qname, peek_type):
     qconn = _get_qconnection(QHOST, QPORT)
-    print "Cleaning up", qconn.use(qname)
+    print ("Cleaning up", qconn.use(qname))
     while True:
         try:
             job = getattr(qconn, 'peek_%s' % peek_type)()
         except AttributeError:
-            print "Invalid peek type: %s. Allowed peek types: ready, delayed, buried." % peek_type
+            print ("Invalid peek type: %s. Allowed peek types: ready, delayed, buried." % peek_type)
             sys.exit(1)
         else:
             if not job:
                 break
-            print "Deleting:", job.jid, job.body
+            print ("Deleting:", job.jid, job.body)
             job.delete()
 
 
@@ -277,12 +277,12 @@ def qpeeknext(qname, peek_type):
     peeks at the next job in a tube
     '''
     qconn  = _get_qconnection(QHOST, QPORT)
-    print "Peeking at next %s job in queue" % peek_type, qconn.use(qname)
+    print ("Peeking at next %s job in queue" % peek_type, qconn.use(qname))
     job = getattr(qconn, 'peek_%s' % peek_type)()
     if not job:
-        print 'No %s jobs in %s' % (peek_type, qname)
+        print ('No %s jobs in %s' % (peek_type, qname))
         return
-    print job.jid, job.body
+    print (job.jid, job.body)
 
 
 def qpeekjob(jid):
@@ -290,12 +290,12 @@ def qpeekjob(jid):
     peeks at the next job in a tube
     '''
     qconn  = _get_qconnection(QHOST, QPORT)
-    print "Peeking at job_id %s" % jid
+    print ("Peeking at job_id %s" % jid)
     job = qconn.peek(int(jid))
     if not job:
-        print 'Job %s not found' % jid
+        print ('Job %s not found' % jid)
         return
-    print job.jid, job.body
+    print (job.jid, job.body)
 
 
 def main():
@@ -304,18 +304,18 @@ def main():
         args = sys.argv[1:]
         if COMMAND == 'queueit':
             if len(sys.argv) == 1:
-                print "Usage:"
-                print "%s q-get" % COMMAND
-                print "%s q-put" % COMMAND
-                print "%s q-kick" % COMMAND
-                print "%s q-stat" % COMMAND
-                print "%s q-wrapper" % COMMAND
-                print "%s q-wrapper-batch" % COMMAND
-                print "%s q-wrapper-with-stats" % COMMAND
-                print "%s q-peek" % COMMAND
-                print "%s q-peek-ready" % COMMAND
-                print "%s q-peek-delayed" % COMMAND
-                print "%s q-peek-buried" % COMMAND
+                print ("Usage:")
+                print ("%s q-get" % COMMAND)
+                print ("%s q-put" % COMMAND)
+                print ("%s q-kick" % COMMAND)
+                print ("%s q-stat" % COMMAND)
+                print ("%s q-wrapper" % COMMAND)
+                print ("%s q-wrapper-batch" % COMMAND)
+                print ("%s q-wrapper-with-stats" % COMMAND)
+                print ("%s q-peek" % COMMAND)
+                print ("%s q-peek-ready" % COMMAND)
+                print ("%s q-peek-delayed" % COMMAND)
+                print ("%s q-peek-buried" % COMMAND)
                 sys.exit(1)
             else:
                 COMMAND = os.path.basename(sys.argv[1])
@@ -324,7 +324,7 @@ def main():
 
         if COMMAND == 'q-get':
             if not len(args) == 1:
-                print "Usage: %s <queue>" % (COMMAND)
+                print ("Usage: %s <queue>" % (COMMAND))
                 sys.exit(1)
             qget(args[0])
         elif COMMAND == 'q-put':
@@ -333,11 +333,11 @@ def main():
             elif len(args) > 1:
                 qput(args[0], args[1:])
             else:
-                print "Usage: %s <queue> [<message>, <message>, ...]\n Message body could be sent trough STDIN" % (COMMAND )
+                print ("Usage: %s <queue> [<message>, <message>, ...]\n Message body could be sent trough STDIN" % (COMMAND ))
                 sys.exit(1)
         elif COMMAND == 'q-kick':
             if len(args) < 1 or len(args) > 2:
-                print "Usage: %s <queue> [<count>]" % COMMAND
+                print ("Usage: %s <queue> [<count>]" % COMMAND)
                 sys.exit(1)
 
             count = 1
@@ -345,7 +345,7 @@ def main():
                 try:
                     count = int(args[1])
                 except ValueError:
-                    print "Wrong count value '%s'. Using default %s" % (args[1], count)
+                    print ("Wrong count value '%s'. Using default %s" % (args[1], count))
             qkick(args[0], count)
         elif COMMAND == 'q-stat':
             if len(args) == 1:
@@ -356,55 +356,55 @@ def main():
             if len(args) >= 3:
                 qwrapper(args[0], args[1], worker_cmd=args[2:])
             else:
-                print "Usage: %s <queue-in> <queue-out> [<cmd>]\n <cmd> could be sent trough STDIN" % (COMMAND)
-                print sys.exit(1)
+                print ("Usage: %s <queue-in> <queue-out> [<cmd>]\n <cmd> could be sent trough STDIN" % (COMMAND))
+                sys.exit(1)
         elif COMMAND == 'q-wrapper-with-stats':
             if len(args) == 4:
                 qwrapperwithstats(stats_queue_name, job_id, command)
             else:
-                print "Usage: %s <statistics-queue> <job_id> <cmd>" % (COMMAND)
-                print sys.exit(1)
+                print ("Usage: %s <statistics-queue> <job_id> <cmd>" % (COMMAND))
+                sys.exit(1)
         elif COMMAND == 'q-wrapper-batch':
             if len(args) >= 4:
                 qwrapperbatch(args[0], args[1], worker_cmd=args[3:], batch_size=int(args[2]))
             else:
-                print "Usage: %s <queue-in> <queue-out> <batch-size> <cmd>" % (COMMAND)
-                print sys.exit(1)
+                print ("Usage: %s <queue-in> <queue-out> <batch-size> <cmd>" % (COMMAND))
+                sys.exit(1)
         elif COMMAND == 'q-cleanup':
             if len(args) == 2:
                 qcleanup(args[0], args[1])
             else:
-                print "Usage: %s <queue> <peek_type>" % (COMMAND)
-                print sys.exit(1)
+                print ("Usage: %s <queue> <peek_type>" % (COMMAND))
+                sys.exit(1)
         elif COMMAND == 'q-peek':
             if len(args) == 1:
                 qpeekjob(args[0])
             else:
-                print "Usage: %s <job_id>" % (COMMAND)
-                print sys.exit(1)
+                print ("Usage: %s <job_id>" % (COMMAND))
+                sys.exit(1)
         elif COMMAND == 'q-peek-ready':
             if len(args) == 1:
                 qpeeknext(args[0], peek_type="ready")
             else:
-                print "Usage: %s <queue>" % (COMMAND)
-                print sys.exit(1)
+                print ("Usage: %s <queue>" % (COMMAND))
+                sys.exit(1)
         elif COMMAND == 'q-peek-delayed':
             if len(args) == 1:
                 qpeeknext(args[0], peek_type="delayed")
             else:
-                print "Usage: %s <queue>" % (COMMAND)
-                print sys.exit(1)
+                print ("Usage: %s <queue>" % (COMMAND))
+                sys.exit(1)
         elif COMMAND == 'q-peek-buried':
             if len(args) == 1:
                 qpeeknext(args[0], peek_type="buried")
             else:
-                print "Usage: %s <queue>" % (COMMAND)
-                print sys.exit(1)
+                print ("Usage: %s <queue>" % (COMMAND))
+                sys.exit(1)
 
         else:
-            print "Unknown command '%s'" % COMMAND
+            print ("Unknown command '%s'" % COMMAND)
     except KeyboardInterrupt:
-        print "Keyboard Interrupt. Bye-bye"
+        print ("Keyboard Interrupt. Bye-bye")
 
 
 if __name__ == "__main__":
