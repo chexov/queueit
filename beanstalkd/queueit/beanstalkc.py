@@ -4,6 +4,9 @@
 __license__ = '''
 Copyright (C) 2008-2014 Andreas Bolka
 
+Changelog:
+2019 - @chexov - 3.7 python compatibility
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -17,11 +20,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
-__version__ = '0.4.0'
+__version__ = '0.4.1'
 
 import logging
 import socket
-
 
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 11300
@@ -29,17 +31,28 @@ DEFAULT_PRIORITY = 2 ** 31
 DEFAULT_TTR = 120
 
 
-class BeanstalkcException(Exception): pass
+class BeanstalkcException(Exception):
+    def __init__(self, msg=None, status=None, results=None):
+        self.msg = msg
+        self.status: int = status
+        self.results = results
+
+
 class UnexpectedResponse(BeanstalkcException): pass
+
+
 class CommandFailed(BeanstalkcException): pass
+
+
 class DeadlineSoon(BeanstalkcException): pass
+
 
 class SocketError(BeanstalkcException):
     @staticmethod
     def wrap(wrapped_function, *args, **kwargs):
         try:
             return wrapped_function(*args, **kwargs)
-        except socket.error, err:
+        except socket.error as err:
             raise SocketError(err)
 
 
@@ -48,7 +61,7 @@ class Connection(object):
                  connect_timeout=socket.getdefaulttimeout()):
         if parse_yaml is True:
             try:
-                parse_yaml = __import__('yaml').load
+                parse_yaml = __import__('yaml').full_load
             except ImportError:
                 logging.error('Failed to load PyYAML, will not parse YAML')
                 parse_yaml = False
@@ -64,12 +77,12 @@ class Connection(object):
         self._socket.settimeout(self._connect_timeout)
         SocketError.wrap(self._socket.connect, (self.host, self.port))
         self._socket.settimeout(None)
-        self._socket_file = self._socket.makefile('rb')
+        self._socket_file = self._socket.makefile('r')
 
     def close(self):
         """Close connection to server."""
         try:
-            self._socket.sendall('quit\r\n')
+            self._socket.sendall(b'quit\r\n')
         except socket.error:
             pass
         try:
@@ -83,7 +96,7 @@ class Connection(object):
         self.connect()
 
     def _interact(self, command, expected_ok, expected_err=[]):
-        SocketError.wrap(self._socket.sendall, command)
+        SocketError.wrap(self._socket.sendall, bytes(command, 'utf-8'))
         status, results = self._read_response()
         if status in expected_ok:
             return results
@@ -97,11 +110,15 @@ class Connection(object):
         if not line:
             raise SocketError()
         response = line.split()
-        return response[0], response[1:]
+        if len(response) > 0:
+            return response[0], response[1:]
+        else:
+            return line, -1
 
     def _read_body(self, size):
         body = SocketError.wrap(self._socket_file.read, size)
-        SocketError.wrap(self._socket_file.read, 2)  # trailing crlf
+        # SocketError.wrap(self._socket_file.read, 2)  # trailing crlf
+        SocketError.wrap(self._socket_file.readline)  # trailing crlf
         if size > 0 and not body:
             raise SocketError()
         return body
@@ -122,7 +139,7 @@ class Connection(object):
     def _interact_peek(self, command):
         try:
             return self._interact_job(command, ['FOUND'], ['NOT_FOUND'], False)
-        except CommandFailed, (_, _status, _results):
+        except CommandFailed:
             return None
 
     # -- public interface --
@@ -131,9 +148,9 @@ class Connection(object):
         """Put a job into the current tube. Returns job id."""
         assert isinstance(body, str), 'Job body must be a str instance'
         jid = self._interact_value(
-                'put %d %d %d %d\r\n%s\r\n' %
-                    (priority, delay, ttr, len(body), body),
-                ['INSERTED'], ['JOB_TOO_BIG','BURIED','DRAINING'])
+            'put %d %d %d %d\r\n%s\r\n' %
+            (priority, delay, ttr, len(body), body),
+            ['INSERTED'], ['JOB_TOO_BIG', 'BURIED', 'DRAINING'])
         return int(jid)
 
     def reserve(self, timeout=None):
@@ -147,11 +164,11 @@ class Connection(object):
             return self._interact_job(command,
                                       ['RESERVED'],
                                       ['DEADLINE_SOON', 'TIMED_OUT'])
-        except CommandFailed, (_, status, results):
-            if status == 'TIMED_OUT':
+        except CommandFailed as e:
+            if e.status == 'TIMED_OUT':
                 return None
-            elif status == 'DEADLINE_SOON':
-                raise DeadlineSoon(results)
+            elif e.status == 'DEADLINE_SOON':
+                raise DeadlineSoon(e.results)
 
     def kick(self, bound=1):
         """Kick at most bound jobs into the ready queue."""
@@ -301,4 +318,5 @@ class Job(object):
 
 if __name__ == '__main__':
     import nose
+
     nose.main(argv=['nosetests', '-c', '.nose.cfg'])
