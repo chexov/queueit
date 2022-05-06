@@ -110,9 +110,13 @@ def qstat(qconn=None, delay=None):
         qconn = _get_qconnection(QHOST, QPORT)
     tubes_stats_last = {}
     while True:
-        LINE = "%-24s %-10s %-10s %-10s %-10s %-10s"
-        print(LINE % ('tube', 'watching', 'buried', 'ready', 'delayed', 'reserved'))
         tubes = qconn.tubes()
+        tube_name_length = 24
+        for tube in tubes:
+            if tube:
+                tube_name_length = max(len(str(tube)) + 3, tube_name_length)
+        LINE = "%-{}s %-10s %-10s %-10s %-10s %-10s".format(tube_name_length)
+        print(LINE % ('tube', 'watching', 'buried', 'ready', 'delayed', 'reserved'))
         for tube in tubes:
             if tube:
                 name = str(tube)
