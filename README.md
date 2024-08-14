@@ -14,61 +14,70 @@ ENVIROMENT VARIABLES
 ====================
 
 You can redefine variables in a such way:
-export QUEUEIT_HOST=btd.local
-export QUEUEIT_PORT=11300
-export QUEUEIT_TIMEOUT=100
-export QUEUEIT_TTR=5000
+
+      export QUEUEIT_HOST=btd.local
+      export QUEUEIT_PORT=11300
+      export QUEUEIT_TIMEOUT=100
+      export QUEUEIT_TTR=5000
 
 
 USING q-put AND q-get
 =====================
 1. Run the beanstalkd server
-beanstalkd -d
+
+      beanstalkd -d
 
 2. Push new tasks to process
-q-put todownload "http://site.com/video1.avi" "http://video2.avi"
 
-3. Run workers in the cloud nodes
+      q-put todownload "http://site.com/video1.avi" "http://video2.avi"
+
+4. Run workers in the cloud nodes
 
 # Downloading files using wget and putting task into 'encoding' queue
-while true; do
-   url=$(q-get todownload);
-   wget -c $url -O $$.out
-   q-put toencode $$.out
-done
+
+      while true; do
+         url=$(q-get todownload);
+         wget -c $url -O $$.out
+         q-put toencode $$.out
+      done
 
 # Get task from the 'encoding' queue and encode video file using HandbrakeCLI
-while true; do
-   in_file=$(q-get toencode)
-   HandbrakeCLI -i $in_file -o ${in_file%.avi}.mp4
-one
+
+      while true; do
+         in_file=$(q-get toencode)
+         HandbrakeCLI -i $in_file -o ${in_file%.avi}.mp4
+      one
 
 
 
 USING q-wrapper
 ===============
 1. Run beanstalkd queue server:
-beanstalkd -d
+
+      beanstalkd -d
 
 2. Push new task
-q-put download "http://site.com/video1.avi"
+
+      q-put download "http://site.com/video1.avi"
 
 3. Run q-wrapper to process the tasks
-q-wrapper download encode wget {}
+
+      q-wrapper download encode wget {}
 
 
 USING q-stat
 ============
-q-stat shows nubmer of ready and buried tasks per queue
-tube                     watching      buried        ready
-default                  24    +1      0             0
-t-start                  3             124           570   -3
-stats                    1             3             0
-t-ir                     1             6             67    +2
-t-ip                     1             6             0
-t-upl                    0             0             9907
-t-t350                   1             0             0
-t-t1350                  1             0             0
+
+      q-stat shows nubmer of ready and buried tasks per queue
+      tube                     watching      buried        ready
+      default                  24    +1      0             0
+      t-start                  3             124           570   -3
+      stats                    1             3             0
+      t-ir                     1             6             67    +2
+      t-ip                     1             6             0
+      t-upl                    0             0             9907
+      t-t350                   1             0             0
+      t-t1350                  1             0             0
 
 
 ## Stargazers over time
